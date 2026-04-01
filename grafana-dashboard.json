@@ -1,0 +1,56 @@
+{
+  "dashboard": {
+    "id": null,
+    "title": "Quantum Hedge Bot Dashboard",
+    "tags": ["trading", "crypto", "risk"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "type": "graph",
+        "title": "Capital",
+        "targets": [
+          {
+            "expr": "capital",
+            "legendFormat": "Capital"
+          }
+        ],
+        "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 }
+      },
+      {
+        "type": "graph",
+        "title": "Drawdown (%)",
+        "targets": [
+          {
+            "expr": "drawdown * 100",
+            "legendFormat": "Drawdown"
+          }
+        ],
+        "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 }
+      },
+      {
+        "type": "graph",
+        "title": "Nombre de trades",
+        "targets": [
+          {
+            "expr": "trades_total",
+            "legendFormat": "Trades"
+          }
+        ],
+        "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 }
+      },
+      {
+        "type": "graph",
+        "title": "PnL (Profit & Loss)",
+        "targets": [
+          {
+            "expr": "pnl",
+            "legendFormat": "PnL"
+          }
+        ],
+        "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 }
+      }
+    ],
+    "schemaVersion": 36,
+    "version": 1
+  }
+}
