@@ -30,6 +30,7 @@ gateway:
   backoff_initial: 500ms
   backoff_max: 30s
   snapshot_timeout: 5s
+  snapshot_depth: 1000     # profondeur du snapshot REST (5..5000)
   depth_stream_speed: "100ms"
 
 store:

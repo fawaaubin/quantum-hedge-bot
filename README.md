@@ -1,27 +1,73 @@
-# Quantum Hedge Bot 🚀
+# Quantum Hedge Bot (v2 — Go)
 
-Un bot de trading crypto **niveau edge**, conçu pour être robuste, sécurisé et évolutif.  
-Il combine **stratégies techniques**, **risk management avancé**, **hedging pro**, **dashboard web**, et **monitoring Prometheus/Grafana**.
+Bot de trading **Binance Spot Testnet** (BTCUSDT uniquement), écrit en Go.
+Architecture *modular monolith*, développement par phases strictes : chaque
+phase est compilable, testée et validable indépendamment.
 
----
+> L'ancien prototype Python (non fonctionnel) est archivé dans [`legacy/`](legacy/).
 
-## ✨ Fonctionnalités
-- Multi‑paires (BTC, ETH, BNB…)
-- Stratégies avancées (RSI, MACD, Bollinger, EMA cross, volume surge, mean reversion)
-- Risk management edge (stop‑loss dynamiques, trailing stop, sizing basé sur volatilité)
-- Hedging automatique Spot/Futures
-- API REST enrichie (`/status`, `/trades`, `/manual_trade`)
-- Dashboard web temps réel (Chart.js + SocketIO)
-- Alertes Telegram/Slack/Email
-- Backtesting sur données historiques
-- CI/CD avec GitHub Actions
-- Déploiement Docker + Monitoring Prometheus/Grafana
+## État des phases
 
----
+| Phase | Contenu | État |
+|---|---|---|
+| 1 | Architecture, interfaces, config, logger | ✅ livrée |
+| 2 | Gateway temps réel (WS trade + depth, carnet local, resync, backoff) | ✅ livrée |
+| 3 | Trading signé (ordres LIMIT GTC, HMAC, filtres, rate limiting) | ⏳ |
+| 4 | Risk manager (sizing, SL/TP, circuit breaker) | ⏳ |
+| 5 | Engine (EMA 9/21, RSI 14, machine à états) | ⏳ |
+| 6 | Production (SQLite WAL, /health, /metrics, Telegram, Docker) | ⏳ |
 
-## 📦 Installation
+## Structure
 
-### 1. Cloner le projet
+```
+cmd/bot/          Point d'entrée
+internal/gateway/       WebSocket publics, carnet d'ordres local
+internal/engine/        Moteur de décision (machine à états)
+internal/ordermanager/  Exécution et suivi des ordres
+internal/risk/          Sizing, SL/TP, circuit breaker
+internal/store/         Persistance SQLite (WAL)
+internal/monitor/       /health, /metrics, alertes
+internal/binance/       Client REST/WS bas niveau, filtres
+internal/backtest/      Rejeu de données historiques
+internal/config/        Configuration YAML + validation
+internal/logger/        slog structuré (secrets masqués)
+pkg/types/              Types de domaine et interfaces partagées
+```
+
+## Démarrage
+
 ```bash
-git clone https://github.com/tonrepo/quantum-hedge-bot.git
-cd quantum-hedge-bot# quantum-hedge-bot
+# 1. Configuration
+cp config.yaml.example config.yaml
+
+# 2. Secrets (jamais dans le YAML) — requis à partir de la Phase 3
+export BINANCE_API_KEY="..."
+export BINANCE_API_SECRET="..."
+
+# 3. Build + tests
+go build ./...
+go test -race ./...
+
+# 4. Lancement
+go run ./cmd/bot -config config.yaml
+```
+
+En Phase 2, le bot se connecte aux flux publics `btcusdt@trade` et
+`btcusdt@depth@100ms` du testnet, maintient un carnet d'ordres local
+synchronisé (snapshot REST + updates incrémentales, resynchronisation
+automatique sur gap de séquence) et journalise l'état du marché toutes
+les 10 s. Aucun ordre n'est envoyé.
+
+## Notes de conception
+
+- **Flux depth** : le carnet local est maintenu via le *diff stream*
+  (`@depth@100ms`) et l'algorithme officiel Binance de synchronisation
+  (`U`/`u`/`lastUpdateId`). Le flux partiel `depth20@100ms` ne porte pas
+  de numéros de séquence et ne permet pas un carnet fiable.
+- **Événements** : publiés sur un channel bufferisé (256) ; la boucle de
+  lecture WebSocket n'est jamais bloquée — en cas de saturation, les
+  événements sont comptés comme perdus (métrique exposée en Phase 6).
+- **Résilience** : reconnexion avec backoff exponentiel + jitter (borné,
+  configurable), resynchronisation du carnet à chaque reconnexion ou gap.
+- **Proxy** : les transports HTTP et WebSocket honorent
+  `HTTPS_PROXY`/`HTTP_PROXY` (`ProxyFromEnvironment`).

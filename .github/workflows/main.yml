@@ -1,26 +1,29 @@
-name: CI/CD
+name: CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main", "claude/**"]
+  pull_request:
+    branches: ["main"]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
         with:
-          python-version: '3.10'
+          go-version: "1.22"
+          cache: true
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt || true
+      - name: Build
+        run: go build ./...
 
-      - name: Run tests
-        run: pytest tests/ || true
+      - name: Vet
+        run: go vet ./...
 
-      - name: Build Docker image
-        run: docker build -t quantum-hedge-bot .
+      - name: Test
+        run: go test -race -count=1 ./...

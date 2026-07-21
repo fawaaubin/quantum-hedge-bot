@@ -60,6 +60,7 @@ type GatewayConfig struct {
 	BackoffInitial   time.Duration `yaml:"backoff_initial"`
 	BackoffMax       time.Duration `yaml:"backoff_max"`
 	SnapshotTimeout  time.Duration `yaml:"snapshot_timeout"`
+	SnapshotDepth    int           `yaml:"snapshot_depth"`     // ex: 1000
 	DepthStreamSpeed string        `yaml:"depth_stream_speed"` // ex: "100ms"
 }
 
@@ -134,6 +135,7 @@ func defaults() *Config {
 			BackoffInitial:   500 * time.Millisecond,
 			BackoffMax:       30 * time.Second,
 			SnapshotTimeout:  5 * time.Second,
+			SnapshotDepth:    1000,
 			DepthStreamSpeed: "100ms",
 		},
 		Store:   StoreConfig{Path: "data/bot.db"},
@@ -176,6 +178,12 @@ func (c *Config) Validate() error {
 	}
 	if c.Gateway.BackoffInitial <= 0 || c.Gateway.BackoffMax < c.Gateway.BackoffInitial {
 		errs = append(errs, errors.New("gateway.backoff_initial et gateway.backoff_max sont incohérents"))
+	}
+	if c.Gateway.SnapshotDepth < 5 || c.Gateway.SnapshotDepth > 5000 {
+		errs = append(errs, errors.New("gateway.snapshot_depth doit être dans [5, 5000]"))
+	}
+	if c.Gateway.SnapshotTimeout <= 0 {
+		errs = append(errs, errors.New("gateway.snapshot_timeout doit être positif"))
 	}
 	if c.Store.Path == "" {
 		errs = append(errs, errors.New("store.path est requis"))
