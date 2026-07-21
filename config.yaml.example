@@ -1,0 +1,43 @@
+# Configuration du bot Binance Spot Testnet (BTCUSDT uniquement).
+# Copier ce fichier vers config.yaml puis ajuster si nécessaire.
+#
+# SECRETS : jamais dans ce fichier. Les clés sont lues depuis
+# l'environnement : BINANCE_API_KEY, BINANCE_API_SECRET,
+# TELEGRAM_TOKEN, TELEGRAM_CHAT_ID.
+
+binance:
+  rest_base_url: "https://testnet.binance.vision"
+  ws_base_url: "wss://stream.testnet.binance.vision"
+  recv_window: 5s        # fenêtre de validité des requêtes signées (5000 ms)
+  testnet: true          # doit rester true dans la version initiale
+
+trading:
+  symbol: "BTCUSDT"
+
+risk:
+  max_risk_per_trade: 0.01    # 1 % du capital par trade
+  max_absolute_risk: 0.02     # 2 % du capital au total
+  max_open_positions: 1
+  breaker_lookback: 10        # fenêtre du circuit breaker (trades)
+  breaker_loss_pct: 0.05      # suspension si pertes > 5 % du capital
+  stop_loss_pct: 0.01         # SL initial : 1 % sous l'entrée
+  take_profit_pct: 0.02       # TP initial : 2 % au-dessus de l'entrée
+  trailing_active_pct: 0.01   # activation du stop suiveur à +1 %
+  trailing_step_pct: 0.005    # pas du stop suiveur : 0,5 %
+
+gateway:
+  event_buffer_size: 256
+  backoff_initial: 500ms
+  backoff_max: 30s
+  snapshot_timeout: 5s
+  depth_stream_speed: "100ms"
+
+store:
+  path: "data/bot.db"
+
+monitor:
+  listen_addr: ":9090"
+
+logging:
+  level: "info"    # debug, info, warn, error
+  format: "json"   # json ou text

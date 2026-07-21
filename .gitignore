@@ -1,0 +1,18 @@
+# Secrets et config locale
+config.yaml
+.env
+
+# Données et binaires
+data/
+bot
+*.db
+*.db-wal
+*.db-shm
+
+# Go
+*.test
+*.out
+
+# Python (bot historique)
+__pycache__/
+*.pyc
