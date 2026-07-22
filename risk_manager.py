@@ -69,14 +69,67 @@ class PortfolioRiskManager:
     # ───────────────────────────────
     # POSITIONS
     # ───────────────────────────────
-    def add_position(self, symbol: str, qty: float, price: float, side: str) -> None:
+    def add_position(self, symbol: str, qty: float, price: float, side: str,
+                     sl: float = None, tp: float = None) -> None:
         with self._lock:
             self.positions.setdefault(symbol, []).append({
                 "qty": float(qty),
                 "entry": float(price),
                 "side": side,
+                "sl": float(sl) if sl is not None else None,
+                "tp": float(tp) if tp is not None else None,
             })
-            log.info("Position ouverte %s %s qty=%s @ %s", symbol, side, qty, price)
+            log.info("Position ouverte %s %s qty=%s @ %s (SL=%s TP=%s)",
+                     symbol, side, qty, price, sl, tp)
+
+    @staticmethod
+    def _realized_pnl(leg: dict, exit_price: float) -> float:
+        direction = 1 if leg["side"] == "BUY" else -1
+        return (exit_price - leg["entry"]) * leg["qty"] * direction
+
+    def check_exits(self, symbol: str, price: float) -> list:
+        """
+        Évalue les positions ouvertes sur `symbol` au prix courant et clôture
+        celles dont le stop-loss ou le take-profit est touché. Le P&L réalisé
+        est appliqué au capital. Renvoie la liste des clôtures.
+        """
+        price = float(price)
+        closed = []
+        with self._lock:
+            legs = self.positions.get(symbol, [])
+            survivors = []
+            for leg in legs:
+                sl, tp = leg.get("sl"), leg.get("tp")
+                hit = None
+                if leg["side"] == "BUY":
+                    if sl is not None and price <= sl:
+                        hit = "SL"
+                    elif tp is not None and price >= tp:
+                        hit = "TP"
+                else:  # SELL / short
+                    if sl is not None and price >= sl:
+                        hit = "SL"
+                    elif tp is not None and price <= tp:
+                        hit = "TP"
+
+                if hit:
+                    pnl = self._realized_pnl(leg, price)
+                    closed.append({
+                        "symbol": symbol, "side": leg["side"], "qty": leg["qty"],
+                        "entry": leg["entry"], "exit": price, "reason": hit, "pnl": pnl,
+                    })
+                else:
+                    survivors.append(leg)
+
+            if survivors:
+                self.positions[symbol] = survivors
+            else:
+                self.positions.pop(symbol, None)
+
+        # update_pnl prend son propre verrou : on l'appelle hors section critique.
+        for c in closed:
+            self.update_pnl(c["pnl"])
+        return closed
 
     def close_position(self, symbol: str) -> None:
         with self._lock:

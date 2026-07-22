@@ -118,6 +118,16 @@ def trading_loop(symbols):
                 if len(volumes[sym]) > 300:
                     volumes[sym].pop(0)
 
+                # 1) Gestion des sorties : SL/TP des positions ouvertes.
+                for c in rm.check_exits(sym, price):
+                    hedger.execute_spot_order(
+                        "SELL" if c["side"] == "BUY" else "BUY",
+                        c["qty"], price, f"exit_{c['reason']}")
+                    save_trade(sym, f"CLOSE_{c['side']}", c["qty"], price, c["pnl"])
+                    log.info("Sortie %s %s | %s | PnL=%.2f",
+                             sym, c["side"], c["reason"], c["pnl"])
+                    socketio.emit("position_closed", c)
+
                 # Signaux
                 score, signals = Strategies.aggregate(prices[sym], volumes[sym])
                 log.info("%s | Score=%s | Signals=%s", sym, score, signals)
@@ -130,24 +140,25 @@ def trading_loop(symbols):
                     })
                     continue
 
-                # Décision
-                if score > 2:
+                # Décision : une seule position ouverte par paire (pas d'empilement).
+                already_open = bool(rm.positions.get(sym))
+                if score > 2 and not already_open:
                     sl = price * 0.98
                     tp = price * 1.04
                     qty = rm.calc_position_size(sym, price, sl)
                     if qty > 0:
                         hedger.execute_spot_order("BUY", qty, price, "aggregate", sl=sl, tp=tp)
                         hedger.auto_hedge(qty, price, spot_side="BUY")
-                        rm.add_position(sym, qty, price, "BUY")
+                        rm.add_position(sym, qty, price, "BUY", sl=sl, tp=tp)
                         save_trade(sym, "BUY", qty, price)
-                elif score < -2:
+                elif score < -2 and not already_open:
                     sl = price * 1.02
                     tp = price * 0.96
                     qty = rm.calc_position_size(sym, price, sl)
                     if qty > 0:
                         hedger.execute_spot_order("SELL", qty, price, "aggregate", sl=sl, tp=tp)
                         hedger.auto_hedge(qty, price, spot_side="SELL")
-                        rm.add_position(sym, qty, price, "SELL")
+                        rm.add_position(sym, qty, price, "SELL", sl=sl, tp=tp)
                         save_trade(sym, "SELL", qty, price)
 
                 # Push temps réel
@@ -225,7 +236,9 @@ def manual_trade():
 
     order = hedger.execute_spot_order(side, qty, price, "manual", sl=sl, tp=tp)
     save_trade(symbol, side, qty, price)
-    rm.add_position(symbol, qty, price, side)
+    rm.add_position(symbol, qty, price, side,
+                    sl=float(sl) if sl is not None else None,
+                    tp=float(tp) if tp is not None else None)
     return jsonify({"status": "ok", "order": order})
 
 
