@@ -51,15 +51,17 @@ type TradingConfig struct {
 
 // RiskConfig porte les paramètres du risk manager (Phase 4).
 type RiskConfig struct {
-	MaxRiskPerTrade   float64 `yaml:"max_risk_per_trade"`  // ex: 0.01 = 1 %
-	MaxAbsoluteRisk   float64 `yaml:"max_absolute_risk"`   // ex: 0.02 = 2 %
-	MaxOpenPositions  int     `yaml:"max_open_positions"`  // ex: 1
-	BreakerLookback   int     `yaml:"breaker_lookback"`    // ex: 10 trades
-	BreakerLossPct    float64 `yaml:"breaker_loss_pct"`    // ex: 0.05 = 5 %
-	StopLossPct       float64 `yaml:"stop_loss_pct"`       // ex: 0.01
-	TakeProfitPct     float64 `yaml:"take_profit_pct"`     // ex: 0.02
-	TrailingActivePct float64 `yaml:"trailing_active_pct"` // ex: 0.01
-	TrailingStepPct   float64 `yaml:"trailing_step_pct"`   // ex: 0.005
+	InitialCapital    float64       `yaml:"initial_capital"`     // capital de référence (quote)
+	MaxRiskPerTrade   float64       `yaml:"max_risk_per_trade"`  // ex: 0.01 = 1 %
+	MaxAbsoluteRisk   float64       `yaml:"max_absolute_risk"`   // ex: 0.02 = 2 %
+	MaxOpenPositions  int           `yaml:"max_open_positions"`  // ex: 1
+	BreakerLookback   int           `yaml:"breaker_lookback"`    // ex: 10 trades
+	BreakerLossPct    float64       `yaml:"breaker_loss_pct"`    // ex: 0.05 = 5 %
+	BreakerCooldown   time.Duration `yaml:"breaker_cooldown"`    // durée de suspension
+	StopLossPct       float64       `yaml:"stop_loss_pct"`       // ex: 0.01
+	TakeProfitPct     float64       `yaml:"take_profit_pct"`     // ex: 0.02
+	TrailingActivePct float64       `yaml:"trailing_active_pct"` // ex: 0.01
+	TrailingStepPct   float64       `yaml:"trailing_step_pct"`   // ex: 0.005
 }
 
 // GatewayConfig porte les paramètres de résilience WebSocket (Phase 2).
@@ -130,11 +132,13 @@ func defaults() *Config {
 		},
 		Trading: TradingConfig{Symbol: "BTCUSDT", ReplaceThresholdPct: 0.0001},
 		Risk: RiskConfig{
+			InitialCapital:    1000,
 			MaxRiskPerTrade:   0.01,
 			MaxAbsoluteRisk:   0.02,
 			MaxOpenPositions:  1,
 			BreakerLookback:   10,
 			BreakerLossPct:    0.05,
+			BreakerCooldown:   4 * time.Hour,
 			StopLossPct:       0.01,
 			TakeProfitPct:     0.02,
 			TrailingActivePct: 0.01,
@@ -188,6 +192,16 @@ func (c *Config) Validate() error {
 	}
 	if c.Risk.BreakerLookback < 1 || c.Risk.BreakerLossPct <= 0 {
 		errs = append(errs, errors.New("risk.breaker_lookback et risk.breaker_loss_pct doivent être positifs"))
+	}
+	if c.Risk.InitialCapital <= 0 {
+		errs = append(errs, errors.New("risk.initial_capital doit être positif"))
+	}
+	if c.Risk.BreakerCooldown <= 0 {
+		errs = append(errs, errors.New("risk.breaker_cooldown doit être positif"))
+	}
+	if c.Risk.StopLossPct <= 0 || c.Risk.TakeProfitPct <= 0 ||
+		c.Risk.TrailingActivePct <= 0 || c.Risk.TrailingStepPct <= 0 {
+		errs = append(errs, errors.New("risk.stop_loss_pct, take_profit_pct, trailing_active_pct et trailing_step_pct doivent être positifs"))
 	}
 	if c.Gateway.EventBufferSize < 1 {
 		errs = append(errs, errors.New("gateway.event_buffer_size doit être >= 1"))

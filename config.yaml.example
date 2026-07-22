@@ -18,11 +18,13 @@ trading:
   replace_threshold_pct: 0.0001  # 0,01 % : dérive max avant annulation/remplacement
 
 risk:
+  initial_capital: 1000       # capital de référence en quote (USDT)
   max_risk_per_trade: 0.01    # 1 % du capital par trade
   max_absolute_risk: 0.02     # 2 % du capital au total
   max_open_positions: 1
   breaker_lookback: 10        # fenêtre du circuit breaker (trades)
   breaker_loss_pct: 0.05      # suspension si pertes > 5 % du capital
+  breaker_cooldown: 4h        # durée de la suspension
   stop_loss_pct: 0.01         # SL initial : 1 % sous l'entrée
   take_profit_pct: 0.02       # TP initial : 2 % au-dessus de l'entrée
   trailing_active_pct: 0.01   # activation du stop suiveur à +1 %
