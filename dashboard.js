@@ -1,8 +1,10 @@
-// Charger Chart.js
-import Chart from "https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js";
+// Chart.js et socket.io sont chargés globalement via <script> dans dashboard.html.
 
-// Connexion SocketIO
-const socket = io("http://localhost:8080");
+// Connexion SocketIO (même origine que l'API par défaut).
+const API_BASE = window.location.origin.startsWith("http")
+  ? window.location.origin
+  : "http://localhost:8080";
+const socket = io(API_BASE);
 
 // Graphique des prix
 const ctxPrice = document.getElementById("priceChart").getContext("2d");
@@ -74,9 +76,20 @@ socket.on("price_update", data => {
 
 // Mise à jour du capital et drawdown via API REST
 async function updateStatus() {
-  const res = await fetch("http://localhost:8080/status");
-  const json = await res.json();
+  let json;
+  try {
+    const res = await fetch(`${API_BASE}/status`);
+    json = await res.json();
+  } catch (e) {
+    return; // API momentanément indisponible : on réessaie au prochain tick.
+  }
   const now = new Date().toLocaleTimeString();
+
+  // KPIs
+  document.getElementById("kpiCapital").textContent = Number(json.capital).toFixed(2);
+  document.getElementById("kpiDD").textContent = (json.drawdown * 100).toFixed(2) + " %";
+  document.getElementById("kpiPnl").textContent = Number(json.realized_pnl).toFixed(2);
+  document.getElementById("kpiHalt").textContent = json.can_trade ? "actif" : "⛔ halte";
 
   capitalChart.data.labels.push(now);
   capitalChart.data.datasets[0].data.push(json.capital);

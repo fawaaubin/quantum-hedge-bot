@@ -1,0 +1,28 @@
+# Stack de développement / paper-trading local.
+# Pour la prod, voir docker-compose.prod.yml.
+version: "3.9"
+
+services:
+  quantum-hedge-bot:
+    build: .
+    container_name: quantum-hedge-bot
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - DATA_FEED=sim          # "sim" (démo) ou "binance"
+      - CAPITAL=1000
+      - RISK_PCT=0.02
+      - MAX_DRAWDOWN=0.10
+      - MAX_PER_PAIR_RISK=0.05
+      - HEDGE_MODE=auto
+      - TESTNET_SPOT=true
+      - TESTNET_FUTURES=true
+      # Secrets à fournir via un fichier .env (non versionné) :
+      - FLASK_SECRET=${FLASK_SECRET:-}
+      - API_TOKEN=${API_TOKEN:-}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8080/health',timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
