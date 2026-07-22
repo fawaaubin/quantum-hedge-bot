@@ -14,7 +14,7 @@ phase est compilable, testée et validable indépendamment.
 | 2 | Gateway temps réel (WS trade + depth, carnet local, resync, backoff) | ✅ livrée |
 | 3 | Trading signé (ordres LIMIT GTC, HMAC, filtres, rate limiting) | ✅ livrée |
 | 4 | Risk manager (sizing, SL/TP, circuit breaker) | ✅ livrée |
-| 5 | Engine (EMA 9/21, RSI 14, machine à états) | ⏳ |
+| 5 | Engine (EMA 9/21, RSI 14, machine à états) | ✅ livrée |
 | 6 | Production (SQLite WAL, /health, /metrics, Telegram, Docker) | ⏳ |
 
 ## Structure

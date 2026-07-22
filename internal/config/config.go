@@ -17,10 +17,23 @@ type Config struct {
 	Binance BinanceConfig `yaml:"binance"`
 	Trading TradingConfig `yaml:"trading"`
 	Risk    RiskConfig    `yaml:"risk"`
+	Engine  EngineConfig  `yaml:"engine"`
 	Gateway GatewayConfig `yaml:"gateway"`
 	Store   StoreConfig   `yaml:"store"`
 	Monitor MonitorConfig `yaml:"monitor"`
 	Logging LoggingConfig `yaml:"logging"`
+}
+
+// EngineConfig porte les paramètres du moteur de décision (Phase 5).
+type EngineConfig struct {
+	CandleInterval  time.Duration `yaml:"candle_interval"`   // ex: 1m
+	EMAFastPeriod   int           `yaml:"ema_fast_period"`   // ex: 9
+	EMASlowPeriod   int           `yaml:"ema_slow_period"`   // ex: 21
+	RSIPeriod       int           `yaml:"rsi_period"`        // ex: 14
+	RSIEntry        float64       `yaml:"rsi_entry"`         // ex: 55
+	RSIExit         float64       `yaml:"rsi_exit"`          // ex: 45
+	MaxSpreadPct    float64       `yaml:"max_spread_pct"`    // ex: 0.0005 = 0,05 %
+	MinLiquidityBTC float64       `yaml:"min_liquidity_btc"` // ex: 2.0
 }
 
 // BinanceConfig regroupe les endpoints et les paramètres d'API.
@@ -144,6 +157,16 @@ func defaults() *Config {
 			TrailingActivePct: 0.01,
 			TrailingStepPct:   0.005,
 		},
+		Engine: EngineConfig{
+			CandleInterval:  time.Minute,
+			EMAFastPeriod:   9,
+			EMASlowPeriod:   21,
+			RSIPeriod:       14,
+			RSIEntry:        55,
+			RSIExit:         45,
+			MaxSpreadPct:    0.0005,
+			MinLiquidityBTC: 2.0,
+		},
 		Gateway: GatewayConfig{
 			EventBufferSize:  256,
 			BackoffInitial:   500 * time.Millisecond,
@@ -202,6 +225,21 @@ func (c *Config) Validate() error {
 	if c.Risk.StopLossPct <= 0 || c.Risk.TakeProfitPct <= 0 ||
 		c.Risk.TrailingActivePct <= 0 || c.Risk.TrailingStepPct <= 0 {
 		errs = append(errs, errors.New("risk.stop_loss_pct, take_profit_pct, trailing_active_pct et trailing_step_pct doivent être positifs"))
+	}
+	if c.Engine.CandleInterval < time.Second {
+		errs = append(errs, errors.New("engine.candle_interval doit être >= 1s"))
+	}
+	if c.Engine.EMAFastPeriod < 1 || c.Engine.EMASlowPeriod <= c.Engine.EMAFastPeriod {
+		errs = append(errs, errors.New("engine.ema_fast_period doit être >= 1 et < ema_slow_period"))
+	}
+	if c.Engine.RSIPeriod < 2 {
+		errs = append(errs, errors.New("engine.rsi_period doit être >= 2"))
+	}
+	if c.Engine.RSIEntry <= c.Engine.RSIExit || c.Engine.RSIEntry >= 100 || c.Engine.RSIExit <= 0 {
+		errs = append(errs, errors.New("engine.rsi_entry et rsi_exit incohérents (0 < exit < entry < 100)"))
+	}
+	if c.Engine.MaxSpreadPct <= 0 || c.Engine.MinLiquidityBTC <= 0 {
+		errs = append(errs, errors.New("engine.max_spread_pct et min_liquidity_btc doivent être positifs"))
 	}
 	if c.Gateway.EventBufferSize < 1 {
 		errs = append(errs, errors.New("gateway.event_buffer_size doit être >= 1"))

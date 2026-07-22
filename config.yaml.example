@@ -30,6 +30,16 @@ risk:
   trailing_active_pct: 0.01   # activation du stop suiveur à +1 %
   trailing_step_pct: 0.005    # pas du stop suiveur : 0,5 %
 
+engine:
+  candle_interval: 1m       # unité de temps des indicateurs
+  ema_fast_period: 9
+  ema_slow_period: 21
+  rsi_period: 14
+  rsi_entry: 55             # RSI minimal pour entrer
+  rsi_exit: 45              # RSI de sortie
+  max_spread_pct: 0.0005    # spread max 0,05 %
+  min_liquidity_btc: 2.0    # liquidité cumulée bid+ask minimale
+
 gateway:
   event_buffer_size: 256
   backoff_initial: 500ms
