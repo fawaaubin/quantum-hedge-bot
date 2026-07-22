@@ -18,11 +18,14 @@ import (
 )
 
 // Client est le client bas niveau de l'API Binance Spot Testnet.
-// Le http.Client est configuré en keep-alive avec un pool de connexions.
+// Le http.Client est configuré en keep-alive avec un pool de connexions ;
+// les requêtes signées passent par un token bucket configurable.
 type Client struct {
-	cfg  config.BinanceConfig
-	http *http.Client
-	log  *slog.Logger
+	cfg     config.BinanceConfig
+	http    *http.Client
+	log     *slog.Logger
+	limiter *tokenBucket
+	now     func() time.Time // injectable pour les tests
 }
 
 // NewClient construit le client REST avec un transport keep-alive.
@@ -39,7 +42,9 @@ func NewClient(cfg config.BinanceConfig, log *slog.Logger) *Client {
 			Transport: transport,
 			Timeout:   10 * time.Second,
 		},
-		log: log.With("module", "binance"),
+		log:     log.With("module", "binance"),
+		limiter: newTokenBucket(cfg.RateLimitCapacity, cfg.RateLimitRefillPer),
+		now:     time.Now,
 	}
 }
 
@@ -93,11 +98,6 @@ func (c *Client) DepthSnapshot(ctx context.Context, symbol string, limit int) (t
 		Asks:         asks,
 		UpdatedAt:    time.Now().UTC(),
 	}, nil
-}
-
-// ExchangeFilters récupérera et validera les filtres du symbole (Phase 3).
-func (c *Client) ExchangeFilters(ctx context.Context, symbol string) (types.SymbolFilters, error) {
-	return types.SymbolFilters{}, types.ErrNotImplemented
 }
 
 // parseLevels convertit les niveaux [prix, quantité] de l'API REST.

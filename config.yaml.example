@@ -10,9 +10,12 @@ binance:
   ws_base_url: "wss://stream.testnet.binance.vision"
   recv_window: 5s        # fenêtre de validité des requêtes signées (5000 ms)
   testnet: true          # doit rester true dans la version initiale
+  rate_limit_capacity: 10        # jetons max du token bucket
+  rate_limit_refill_per_sec: 5   # recharge (requêtes/seconde)
 
 trading:
   symbol: "BTCUSDT"
+  replace_threshold_pct: 0.0001  # 0,01 % : dérive max avant annulation/remplacement
 
 risk:
   max_risk_per_trade: 0.01    # 1 % du capital par trade

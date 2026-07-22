@@ -12,7 +12,7 @@ phase est compilable, testée et validable indépendamment.
 |---|---|---|
 | 1 | Architecture, interfaces, config, logger | ✅ livrée |
 | 2 | Gateway temps réel (WS trade + depth, carnet local, resync, backoff) | ✅ livrée |
-| 3 | Trading signé (ordres LIMIT GTC, HMAC, filtres, rate limiting) | ⏳ |
+| 3 | Trading signé (ordres LIMIT GTC, HMAC, filtres, rate limiting) | ✅ livrée |
 | 4 | Risk manager (sizing, SL/TP, circuit breaker) | ⏳ |
 | 5 | Engine (EMA 9/21, RSI 14, machine à états) | ⏳ |
 | 6 | Production (SQLite WAL, /health, /metrics, Telegram, Docker) | ⏳ |
@@ -52,11 +52,23 @@ go test -race ./...
 go run ./cmd/bot -config config.yaml
 ```
 
-En Phase 2, le bot se connecte aux flux publics `btcusdt@trade` et
+Le bot se connecte aux flux publics `btcusdt@trade` et
 `btcusdt@depth@100ms` du testnet, maintient un carnet d'ordres local
 synchronisé (snapshot REST + updates incrémentales, resynchronisation
 automatique sur gap de séquence) et journalise l'état du marché toutes
-les 10 s. Aucun ordre n'est envoyé.
+les 10 s. Avec des clés API, il réconcilie l'état des ordres au
+démarrage ; sans clés, il reste en mode observation. Aucun ordre n'est
+envoyé tant que le moteur de décision (Phase 5) n'est pas actif.
+
+### Test d'intégration testnet (optionnel)
+
+```bash
+BINANCE_API_KEY=... BINANCE_API_SECRET=... \
+  go test -tags integration -run TestIntegration ./internal/ordermanager/
+```
+
+Place un ordre LIMIT GTC 20 % sous le marché (non exécutable), vérifie
+`openOrders` et l'anti-double-ordre, puis annule.
 
 ## Notes de conception
 

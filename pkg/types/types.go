@@ -142,9 +142,17 @@ type Order struct {
 	Price            float64
 	OrigQuantity     float64
 	ExecutedQuantity float64
-	Status           OrderStatus
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
+	// CumQuote est le montant quote cumulé réellement exécuté
+	// (cummulativeQuoteQty) : sert au calcul exact du prix moyen.
+	CumQuote  float64
+	Status    OrderStatus
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+// IsOpen indique si l'ordre est encore actif côté exchange.
+func (o Order) IsOpen() bool {
+	return o.Status == OrderStatusNew || o.Status == OrderStatusPartiallyFilled
 }
 
 // Position représente une position ouverte ou clôturée.
@@ -211,6 +219,10 @@ type SymbolFilters struct {
 	MinQty      float64
 	MaxQty      float64
 	MinNotional float64
+	// Précisions décimales dérivées de stepSize/tickSize, pour formater
+	// les quantités et prix envoyés à l'API sans bruit flottant.
+	QtyDecimals   int
+	PriceDecimals int
 }
 
 // Balance est le solde d'un actif du compte.

@@ -10,10 +10,10 @@ import (
 
 // Clés d'attributs interdites en clair dans les logs.
 var sensitiveKeys = map[string]struct{}{
-	"api_key":       {},
-	"api_secret":    {},
-	"signature":     {},
-	"x-mbx-apikey":  {},
+	"api_key":        {},
+	"api_secret":     {},
+	"signature":      {},
+	"x-mbx-apikey":   {},
 	"telegram_token": {},
 }
 

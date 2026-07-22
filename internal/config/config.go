@@ -31,6 +31,10 @@ type BinanceConfig struct {
 	RecvWindow  time.Duration `yaml:"recv_window"`
 	Testnet     bool          `yaml:"testnet"`
 
+	// Rate limiting côté client (token bucket).
+	RateLimitCapacity  float64 `yaml:"rate_limit_capacity"`       // jetons max
+	RateLimitRefillPer float64 `yaml:"rate_limit_refill_per_sec"` // jetons/s
+
 	// Chargés depuis BINANCE_API_KEY / BINANCE_API_SECRET, jamais loggés.
 	APIKey    string `yaml:"-"`
 	APISecret string `yaml:"-"`
@@ -39,19 +43,23 @@ type BinanceConfig struct {
 // TradingConfig limite le périmètre de trading.
 type TradingConfig struct {
 	Symbol string `yaml:"symbol"`
+	// ReplaceThresholdPct est la dérive de prix (fraction, ex 0.0001 =
+	// 0,01 %) au-delà de laquelle un ordre d'entrée non exécuté est
+	// annulé et replacé au nouveau meilleur prix.
+	ReplaceThresholdPct float64 `yaml:"replace_threshold_pct"`
 }
 
 // RiskConfig porte les paramètres du risk manager (Phase 4).
 type RiskConfig struct {
-	MaxRiskPerTrade   float64 `yaml:"max_risk_per_trade"`   // ex: 0.01 = 1 %
-	MaxAbsoluteRisk   float64 `yaml:"max_absolute_risk"`    // ex: 0.02 = 2 %
-	MaxOpenPositions  int     `yaml:"max_open_positions"`   // ex: 1
-	BreakerLookback   int     `yaml:"breaker_lookback"`     // ex: 10 trades
-	BreakerLossPct    float64 `yaml:"breaker_loss_pct"`     // ex: 0.05 = 5 %
-	StopLossPct       float64 `yaml:"stop_loss_pct"`        // ex: 0.01
-	TakeProfitPct     float64 `yaml:"take_profit_pct"`      // ex: 0.02
-	TrailingActivePct float64 `yaml:"trailing_active_pct"`  // ex: 0.01
-	TrailingStepPct   float64 `yaml:"trailing_step_pct"`    // ex: 0.005
+	MaxRiskPerTrade   float64 `yaml:"max_risk_per_trade"`  // ex: 0.01 = 1 %
+	MaxAbsoluteRisk   float64 `yaml:"max_absolute_risk"`   // ex: 0.02 = 2 %
+	MaxOpenPositions  int     `yaml:"max_open_positions"`  // ex: 1
+	BreakerLookback   int     `yaml:"breaker_lookback"`    // ex: 10 trades
+	BreakerLossPct    float64 `yaml:"breaker_loss_pct"`    // ex: 0.05 = 5 %
+	StopLossPct       float64 `yaml:"stop_loss_pct"`       // ex: 0.01
+	TakeProfitPct     float64 `yaml:"take_profit_pct"`     // ex: 0.02
+	TrailingActivePct float64 `yaml:"trailing_active_pct"` // ex: 0.01
+	TrailingStepPct   float64 `yaml:"trailing_step_pct"`   // ex: 0.005
 }
 
 // GatewayConfig porte les paramètres de résilience WebSocket (Phase 2).
@@ -113,12 +121,14 @@ func Load(path string) (*Config, error) {
 func defaults() *Config {
 	return &Config{
 		Binance: BinanceConfig{
-			RESTBaseURL: "https://testnet.binance.vision",
-			WSBaseURL:   "wss://stream.testnet.binance.vision",
-			RecvWindow:  5000 * time.Millisecond,
-			Testnet:     true,
+			RESTBaseURL:        "https://testnet.binance.vision",
+			WSBaseURL:          "wss://stream.testnet.binance.vision",
+			RecvWindow:         5000 * time.Millisecond,
+			Testnet:            true,
+			RateLimitCapacity:  10,
+			RateLimitRefillPer: 5,
 		},
-		Trading: TradingConfig{Symbol: "BTCUSDT"},
+		Trading: TradingConfig{Symbol: "BTCUSDT", ReplaceThresholdPct: 0.0001},
 		Risk: RiskConfig{
 			MaxRiskPerTrade:   0.01,
 			MaxAbsoluteRisk:   0.02,
@@ -160,6 +170,12 @@ func (c *Config) Validate() error {
 	}
 	if c.Binance.RecvWindow <= 0 || c.Binance.RecvWindow > 60*time.Second {
 		errs = append(errs, errors.New("binance.recv_window doit être dans (0, 60s]"))
+	}
+	if c.Binance.RateLimitCapacity < 1 || c.Binance.RateLimitRefillPer <= 0 {
+		errs = append(errs, errors.New("binance.rate_limit_capacity et rate_limit_refill_per_sec doivent être positifs"))
+	}
+	if c.Trading.ReplaceThresholdPct <= 0 || c.Trading.ReplaceThresholdPct > 0.01 {
+		errs = append(errs, errors.New("trading.replace_threshold_pct doit être dans (0, 0.01]"))
 	}
 	if c.Risk.MaxRiskPerTrade <= 0 || c.Risk.MaxRiskPerTrade > 1 {
 		errs = append(errs, errors.New("risk.max_risk_per_trade doit être dans (0, 1]"))
