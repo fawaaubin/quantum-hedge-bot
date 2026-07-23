@@ -20,7 +20,7 @@ class AlertManager:
         try:
             url = f"https://api.telegram.org/bot{self.telegram_token}/sendMessage"
             data = {"chat_id": self.telegram_chat_id, "text": message}
-            requests.post(url, data=data)
+            requests.post(url, data=data, timeout=10)
             log.info(f"Telegram alert sent: {message}")
         except Exception as e:
             log.error(f"Telegram alert fail: {e}")
@@ -33,7 +33,7 @@ class AlertManager:
             log.warning("Slack alert skipped: no config")
             return
         try:
-            requests.post(self.slack_webhook, json={"text": message})
+            requests.post(self.slack_webhook, json={"text": message}, timeout=10)
             log.info(f"Slack alert sent: {message}")
         except Exception as e:
             log.error(f"Slack alert fail: {e}")
@@ -65,7 +65,12 @@ class AlertManager:
     # GENERIC ALERT
     # ───────────────────────────────
     def send_alert(self, message):
+        """Diffuse l'alerte sur tous les canaux configurés (best-effort)."""
         self.send_telegram(message)
         self.send_slack(message)
         if self.email_config:
             self.send_email("Quantum Hedge Alert", message)
+
+    # Alias historique conservé pour compatibilité.
+    def notify(self, message):
+        self.send_alert(message)
